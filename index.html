@@ -1,1 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>BANG - Share, Watch & Connect</title>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc, where, arrayUnion, arrayRemove, increment, Timestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-storage.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
 
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2g8see9kRvS4nfJ5Z1oAqgrucAzoLcQE",
+      authDomain: "bang-6a629.firebaseapp.com",
+      projectId: "bang-6a629",
+      storageBucket: "bang-6a629.firebasestorage.app",
+      messagingSenderId: "524058911761",
+      appId: "1:524058911761:web:4600834154744a0958fdb0",
+      measurementId: "G-2BCDVCKJTT"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // Expose to global for inline handlers
+    window.auth = auth;
+    window.db = db;
+    window.storage = storage;
+    window.Timestamp = Timestamp;
+    window.increment = increment;
+    window.arrayUnion = arrayUnion;
+    window.arrayRemove = arrayRemove;
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #f0f0f0;
+    }
+
+    /* responsive container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* header */
+    .header {
+      background: #111;
+      border-bottom: 1px solid #222;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      background: rgba(17, 17, 17, 0.95);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      padding: 12px 0;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ff3b3b, #ff9f2e);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 18px;
+      border-radius: 40px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #2c2c2c;
+      color: white;
+    }
+
+    .btn-primary {
+      background: #e50914;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #ff0f1a;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #555;
+    }
+
+    .btn-outline:hover {
+      background: #2a2a2a;
+    }
+
+    /* video grid */
+    .videos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      margin: 30px 0;
+    }
+
+    .video-card {
+      background: #121212;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      border: 1px solid #222;
+    }
+
+    .video-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+      border-color: #e50914;
+    }
+
+    .thumbnail {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #1a1a1a;
+    }
+
+    .video-info {
+      padding: 12px;
+    }
+
+    .video-title {
+      font-weight: 600;
+      font-size: 1rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .video-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 8px;
+    }
+
+    .channel-name {
+      color: #ddd;
+      font-weight: 500;
+      font-size: 0.8rem;
+    }
+
+    /* modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-content {
+      background: #111;
+      max-width: 900px;
+      width: 90%;
+      border-radius: 24px;
+      overflow-y: auto;
+      max-height: 90vh;
+      border: 1px solid #333;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #222;
+    }
+
+    .close-modal {
+      font-size: 28px;
+      cursor: pointer;
+    }
+
+    /* upload form */
+    .upload-form, .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    input, textarea, select {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      padding: 12px;
+      border-radius: 12px;
+      color: white;
+      font-size: 1rem;
+    }
+
+    /* video detail page inside modal */
+    .video-player {
+      width: 100%;
+      background: black;
+    }
+
+    .video-actions {
+      display: flex;
+      gap: 24px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #222;
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .action-btn.active {
+      color: #e50914;
+    }
+
+    .comments-section {
+      padding: 20px;
+    }
+
+    .comment {
+      padding: 12px 0;
+      border-bottom: 1px solid #222;
+    }
+
+    .dashboard {
+      background: #0f0f0f;
+      border-radius: 24px;
+      margin: 20px 0;
+      padding: 20px;
+    }
+
+    .responsive-table {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #222;
+    }
+
+    .delete-vid {
+      color: #ff5c5c;
+      cursor: pointer;
+    }
+
+    @media (max-width: 640px) {
+      .header-inner {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .videos-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container header-inner">
+    <div class="logo">🔥 BANG</div>
+    <div class="nav-buttons" id="nav-buttons">
+      <button class="btn" id="homeBtn">🏠 Home</button>
+      <button class="btn btn-primary" id="uploadBtn" style="display: none;">📤 Upload Video</button>
+      <button class="btn btn-outline" id="dashboardBtn" style="display: none;">📊 Dashboard</button>
+      <span id="userGreet" style="margin-right: 8px;"></span>
+      <button class="btn" id="authBtn">Sign In</button>
+    </div>
+  </div>
+</div>
+
+<main class="container" id="appContent">
+  <!-- Videos grid will be injected here -->
+  <div id="videosGrid" class="videos-grid"></div>
+  <div id="dashboardPanel" style="display: none;"></div>
+</main>
+
+<!-- Auth Modal -->
+<div id="authModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <div class="modal-header">
+      <h3>Join BANG</h3>
+      <span class="close-modal" id="closeAuthModal">&times;</span>
+    </div>
+    <div id="authFormContainer">
+      <div class="upload-form">
+        <input type="email" id="authEmail" placeholder="Email" autocomplete="email">
+        <input type="password" id="authPassword" placeholder="Password">
+        <button class="btn btn-primary" id="signInBtn">Sign In</button>
+        <button class="btn btn-outline" id="signUpBtn">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Upload New Video</h3>
+      <span class="close-modal" id="closeUploadModal">&times;</span>
+    </div>
+    <div class="upload-form">
+      <input type="text" id="videoTitle" placeholder="Video title" maxlength="100">
+      <textarea id="videoDesc" rows="3" placeholder="Description"></textarea>
+      <input type="file" id="videoFile" accept="video/mp4,video/webm,video/quicktime">
+      <input type="file" id="thumbFile" accept="image/jpeg,image/png,image/webp">
+      <button class="btn btn-primary" id="publishVideoBtn">Publish</button>
+      <div id="uploadProgress" style="font-size:0.8rem; color:#ff9f2e;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Video Detail Modal -->
+<div id="videoModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalVideoTitle"></h3>
+      <span class="close-modal" id="closeVideoModal">&times;</span>
+    </div>
+    <div id="videoDetailContainer"></div>
+  </div>
+</div>
+
+<script type="module">
+  // -------------------- GLOBALS --------------------
+  let currentUser = null;
+  let allVideos = []; // store videos array
+  let currentVideoId = null;
+
+  // DOM elements
+  const videosGrid = document.getElementById('videosGrid');
+  const authModal = document.getElementById('authModal');
+  const uploadModal = document.getElementById('uploadModal');
+  const videoModal = document.getElementById('videoModal');
+  const authBtn = document.getElementById('authBtn');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const dashboardBtn = document.getElementById('dashboardBtn');
+  const homeBtn = document.getElementById('homeBtn');
+  const userGreet = document.getElementById('userGreet');
+  const dashboardPanel = document.getElementById('dashboardPanel');
+
+  // Helper: load videos from firestore
+  async function loadVideos() {
+    try {
+      const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      allVideos = [];
+      snapshot.forEach(docSnap => {
+        allVideos.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      renderHomePage();
+    } catch (err) {
+      console.error(err);
+      videosGrid.innerHTML = '<p>Failed to load videos.</p>';
+    }
+  }
+
+  // Render main grid
+  function renderHomePage() {
+    dashboardPanel.style.display = 'none';
+    videosGrid.style.display = 'grid';
+    if (!allVideos.length) {
+      videosGrid.innerHTML = '<div style="text-align:center; margin:40px;">No videos yet. Be the first to upload 🔥</div>';
+      return;
+    }
+    videosGrid.innerHTML = allVideos.map(video => `
+      <div class="video-card" data-id="${video.id}">
+        <img class="thumbnail" src="${video.thumbnailURL || 'https://placehold.co/480x270/222/fff?text=No+Thumb'}" alt="thumb" loading="lazy">
+        <div class="video-info">
+          <div class="video-title">${escapeHtml(video.title)}</div>
+          <div class="channel-name">${escapeHtml(video.channelName || 'Unknown Creator')}</div>
+          <div class="video-meta">
+            <span>👁️ ${formatNumber(video.views || 0)}</span>
+            <span>❤️ ${formatNumber(video.likes || 0)}</span>
+            <span>💬 ${formatNumber(video.commentCount || 0)}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    // attach click listeners
+    document.querySelectorAll('.video-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const id = card.getAttribute('data-id');
+        openVideoDetail(id);
+      });
+    });
+  }
+
+  // open video modal with full data
+  async function openVideoDetail(videoId) {
+    const video = allVideos.find(v => v.id === videoId);
+    if (!video) return;
+    currentVideoId = videoId;
+    document.getElementById('modalVideoTitle').innerText = video.title;
+    const container = document.getElementById('videoDetailContainer');
+    // increment views only once per session (firestore increment)
+    const videoRef = doc(db, "videos", videoId);
+    await updateDoc(videoRef, { views: increment(1) });
+    video.views = (video.views || 0) + 1; // update local copy
+    
+    // fetch comments
+    const commentsSnap = await getDocs(query(collection(db, "videos", videoId, "comments"), orderBy("createdAt", "desc")));
+    let commentsList = [];
+    commentsSnap.forEach(docSnap => commentsList.push({ id: docSnap.id, ...docSnap.data() }));
+    
+    const isLikedByUser = currentUser && video.likedBy && video.likedBy.includes(currentUser.uid);
+    container.innerHTML = `
+      <video controls class="video-player" src="${video.videoURL}" poster="${video.thumbnailURL}" style="width:100%; max-height:60vh; background:#000;"></video>
+      <div class="video-actions">
+        <button class="action-btn like-btn ${isLikedByUser ? 'active' : ''}" data-id="${videoId}">❤️ ${formatNumber(video.likes || 0)}</button>
+        <button class="action-btn comment-toggle">💬 ${formatNumber(video.commentCount || 0)}</button>
+      </div>
+      <div class="comments-section" id="commentsSection">
+        <div style="margin-bottom: 16px;">
+          <textarea id="newComment" rows="2" placeholder="Add a comment..." style="width:100%; resize:vertical;"></textarea>
+          <button class="btn btn-primary" id="postCommentBtn" style="margin-top:8px;">Post Comment</button>
+        </div>
+        <div id="commentsList">
+          ${commentsList.map(c => `<div class="comment"><strong>${escapeHtml(c.userName)}</strong><p style="margin-top:4px;">${escapeHtml(c.text)}</p><small style="color:#888;">${new Date(c.createdAt?.toDate()).toLocaleString()}</small></div>`).join('') || '<p>No comments yet.</p>'}
+        </div>
+      </div>
+    `;
+    videoModal.style.display = 'flex';
+    // attach like btn event
+    const likeBtn = container.querySelector('.like-btn');
+    likeBtn.addEventListener('click', async () => {
+      if (!currentUser) { alert('Sign in to like videos'); return; }
+      const vidRef = doc(db, "videos", videoId);
+      const videoSnap = await getDoc(vidRef);
+      const data = videoSnap.data();
+      const likedBy = data.likedBy || [];
+      if (likedBy.includes(currentUser.uid)) {
+        await updateDoc(vidRef, { likes: increment(-1), likedBy: arrayRemove(currentUser.uid) });
+        likeBtn.classList.remove('active');
+        const newLikes = (data.likes || 1) - 1;
+        likeBtn.innerHTML = `❤️ ${formatNumber(newLikes)}`;
+        const idx = allVideos.findIndex(v => v.id === videoId);
+        if(idx !== -1) { allVideos[idx].likes = newLikes; allVideos[idx].likedBy = allVideos[idx].likedBy?.filter(id => id !== currentUser.uid) || []; }
+      } else {
+        await updateDoc(vidRef, { likes: increment(1), likedBy: arrayUnion(currentUser.uid) });
+        likeBtn.classList.add('active');
+        const newLikes = (data.likes || 0) + 1;
+        likeBtn.innerHTML = `❤️ ${formatNumber(newLikes)}`;
+        const idx = allVideos.findIndex(v => v.id === videoId);
+        if(idx !== -1) { allVideos[idx].likes = newLikes; allVideos[idx].likedBy = [...(allVideos[idx].likedBy || []), currentUser.uid]; }
+      }
+    });
+    // post comment
+    const postBtn = container.querySelector('#postCommentBtn');
+    postBtn.addEventListener('click', async () => {
+      if (!currentUser) { alert('Login to comment'); return; }
+      const commentText = container.querySelector('#newComment').value.trim();
+      if (!commentText) return;
+      const commentRef = collection(db, "videos", videoId, "comments");
+      await addDoc(commentRef, {
+        text: commentText,
+        userId: currentUser.uid,
+        userName: currentUser.displayName || currentUser.email.split('@')[0],
+        createdAt: Timestamp.now()
+      });
+      await updateDoc(vidRef, { commentCount: increment(1) });
+      // update local comment count
+      const videoIdx = allVideos.findIndex(v => v.id === videoId);
+      if(videoIdx !== -1) allVideos[videoIdx].commentCount = (allVideos[videoIdx].commentCount || 0) + 1;
+      // refresh detail
+      openVideoDetail(videoId);
+    });
+  }
+
+  // Upload video (storage + firestore)
+  async function uploadVideo(file, thumbFile, title, desc) {
+    if (!currentUser) throw new Error("Not logged in");
+    const storagePath = `videos/${currentUser.uid}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, storagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+    return new Promise((resolve, reject) => {
+      let videoURL = null, thumbURL = null;
+      uploadTask.on('state_changed', (snap) => {
+        const percent = (snap.bytesTransferred / snap.totalBytes) * 100;
+        document.getElementById('uploadProgress').innerText = `Uploading video: ${Math.round(percent)}%`;
+      }, reject, async () => {
+        videoURL = await getDownloadURL(uploadTask.snapshot.ref);
+        if (thumbFile) {
+          const thumbRef = ref(storage, `thumbnails/${currentUser.uid}/${Date.now()}_thumb`);
+          const thumbTask = uploadBytesResumable(thumbRef, thumbFile);
+          thumbTask.on('state_changed', null, reject, async () => {
+            thumbURL = await getDownloadURL(thumbRef);
+            await saveVideoToFirestore(videoURL, thumbURL, title, desc);
+            resolve();
+          });
+        } else {
+          await saveVideoToFirestore(videoURL, null, title, desc);
+          resolve();
+        }
+      });
+    });
+  }
+
+  async function saveVideoToFirestore(videoURL, thumbURL, title, desc) {
+    const channelName = currentUser.displayName || currentUser.email.split('@')[0];
+    await addDoc(collection(db, "videos"), {
+      title: title,
+      description: desc,
+      videoURL: videoURL,
+      thumbnailURL: thumbURL || 'https://placehold.co/480x270/222/fff?text=No+Thumb',
+      channelId: currentUser.uid,
+      channelName: channelName,
+      views: 0,
+      likes: 0,
+      commentCount: 0,
+      likedBy: [],
+      createdAt: Timestamp.now()
+    });
+    alert("Video published!");
+    loadVideos();
+  }
+
+  // Dashboard: show user's videos + brand/channel stats
+  async function showDashboard() {
+    if (!currentUser) return;
+    videosGrid.style.display = 'none';
+    dashboardPanel.style.display = 'block';
+    const q = query(collection(db, "videos"), where("channelId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    const userVideos = [];
+    snap.forEach(docSnap => userVideos.push({ id: docSnap.id, ...docSnap.data() }));
+    dashboardPanel.innerHTML = `
+      <div class="dashboard">
+        <h2>🎬 Creator Dashboard: ${currentUser.displayName || currentUser.email}</h2>
+        <p>Total Videos: ${userVideos.length} | Total Views: ${userVideos.reduce((acc,v)=>acc+(v.views||0),0)}</p>
+        <div class="responsive-table">
+          <table>
+            <thead><tr><th>Title</th><th>Views</th><th>Likes</th><th>Comments</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${userVideos.map(v => `
+                <tr>
+                  <td>${escapeHtml(v.title)}</td>
+                  <td>${formatNumber(v.views)}</td>
+                  <td>${formatNumber(v.likes)}</td>
+                  <td>${formatNumber(v.commentCount)}</td>
+                  <td><button class="btn delete-vid" data-id="${v.id}">🗑 Delete</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-primary" id="uploadFromDashBtn">+ Upload New Video</button>
+      </div>
+    `;
+    document.querySelectorAll('.delete-vid').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const vidId = btn.getAttribute('data-id');
+        if (confirm("Delete video permanently?")) {
+          const videoDoc = await getDoc(doc(db, "videos", vidId));
+          const data = videoDoc.data();
+          if(data.videoURL) {
+            const videoRef = ref(storage, data.videoURL);
+            await deleteObject(videoRef).catch(e=>console.warn);
+          }
+          if(data.thumbnailURL && data.thumbnailURL.includes('firebasestorage')) {
+            const thumbRef = ref(storage, data.thumbnailURL);
+            await deleteObject(thumbRef).catch(e=>console.warn);
+          }
+          await deleteDoc(doc(db, "videos", vidId));
+          alert("Deleted");
+          showDashboard();
+          loadVideos();
+        }
+      });
+    });
+    document.getElementById('uploadFromDashBtn')?.addEventListener('click', () => { uploadModal.style.display = 'flex'; });
+  }
+
+  // auth & ui state
+  function updateUIForUser(user) {
+    if (user) {
+      currentUser = user;
+      authBtn.innerText = 'Sign Out';
+      userGreet.innerText = `👋 ${user.displayName || user.email.split('@')[0]}`;
+      uploadBtn.style.display = 'inline-block';
+      dashboardBtn.style.display = 'inline-block';
+    } else {
+      currentUser = null;
+      authBtn.innerText = 'Sign In';
+      userGreet.innerText = '';
+      uploadBtn.style.display = 'none';
+      dashboardBtn.style.display = 'none';
+    }
+    loadVideos();
+  }
+
+  // Auth listeners
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      updateUIForUser(user);
+    } else {
+      updateUIForUser(null);
+      if (dashboardPanel.style.display === 'block') renderHomePage();
+    }
+  });
+
+  // Modal controls
+  authBtn.onclick = () => authModal.style.display = 'flex';
+  document.getElementById('closeAuthModal').onclick = () => authModal.style.display = 'none';
+  document.getElementById('closeUploadModal').onclick = () => uploadModal.style.display = 'none';
+  document.getElementById('closeVideoModal').onclick = () => videoModal.style.display = 'none';
+  window.onclick = (e) => { if(e.target === authModal) authModal.style.display = 'none'; if(e.target === uploadModal) uploadModal.style.display = 'none'; if(e.target === videoModal) videoModal.style.display = 'none'; };
+  uploadBtn.onclick = () => { if(currentUser) uploadModal.style.display = 'flex'; else alert('Please sign in first'); };
+  dashboardBtn.onclick = () => { if(currentUser) showDashboard(); else alert('Sign in to see dashboard'); };
+  homeBtn.onclick = () => { dashboardPanel.style.display = 'none'; videosGrid.style.display = 'grid'; loadVideos(); };
+
+  // Auth actions
+  document.getElementById('signInBtn').onclick = async () => {
+    const email = document.getElementById('authEmail').value;
+    const pwd = document.getElementById('authPassword').value;
+    try {
+      await signInWithEmailAndPassword(auth, email, pwd);
+      authModal.style.display = 'none';
+    } catch (err) { alert(err.message); }
+  };
+  document.getElementById('signUpBtn').onclick = async () => {
+    const email = document.getElementById('authEmail').value;
+    const pwd = document.getElementById('authPassword').value;
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+      await updateProfile(cred.user, { displayName: email.split('@')[0] });
+      authModal.style.display = 'none';
+    } catch (err) { alert(err.message); }
+  };
+
+  // Publish video logic
+  document.getElementById('publishVideoBtn').onclick = async () => {
+    if (!currentUser) { alert("Login required"); return; }
+    const title = document.getElementById('videoTitle').value.trim();
+    const desc = document.getElementById('videoDesc').value.trim();
+    const videoFile = document.getElementById('videoFile').files[0];
+    const thumbFile = document.getElementById('thumbFile').files[0];
+    if (!title || !videoFile) { alert("Title and video file required"); return; }
+    document.getElementById('uploadProgress').innerText = "Starting upload...";
+    try {
+      await uploadVideo(videoFile, thumbFile, title, desc);
+      uploadModal.style.display = 'none';
+      document.getElementById('videoTitle').value = '';
+      document.getElementById('videoDesc').value = '';
+      document.getElementById('videoFile').value = '';
+      document.getElementById('thumbFile').value = '';
+      document.getElementById('uploadProgress').innerText = '';
+    } catch (err) { alert("Upload error: " + err.message); document.getElementById('uploadProgress').innerText = ''; }
+  };
+
+  // utils
+  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+  function formatNumber(num) { if(num>=1000000) return (num/1000000).toFixed(1)+'M'; if(num>=1000) return (num/1000).toFixed(1)+'K'; return num; }
+
+  loadVideos();
+</script>
+</body>
+</html>
