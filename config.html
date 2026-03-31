@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>BANG - Database Setup & Configuration</title>
+  <title>BANG - Complete Video Platform</title>
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc, where, arrayUnion, arrayRemove, increment, Timestamp, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc, where, arrayUnion, arrayRemove, increment, Timestamp, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
     import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-storage.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
 
@@ -35,8 +35,6 @@
     window.increment = increment;
     window.arrayUnion = arrayUnion;
     window.arrayRemove = arrayRemove;
-    window.writeBatch = writeBatch;
-    window.setDoc = setDoc;
   </script>
   <style>
     * {
@@ -130,7 +128,6 @@
       background: #1b5e20;
     }
 
-    /* Config Panel */
     .config-panel {
       background: #121212;
       border-radius: 24px;
@@ -228,21 +225,6 @@
       margin-top: 8px;
     }
 
-    .progress-bar {
-      height: 4px;
-      background: #2c2c2c;
-      border-radius: 2px;
-      overflow: hidden;
-      margin-top: 16px;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: #e50914;
-      width: 0%;
-      transition: width 0.3s;
-    }
-
     .log-area {
       background: #0a0a0a;
       border-radius: 12px;
@@ -250,13 +232,13 @@
       margin-top: 24px;
       font-family: monospace;
       font-size: 12px;
-      max-height: 200px;
+      max-height: 300px;
       overflow-y: auto;
       border: 1px solid #2a2a2a;
     }
 
     .log-entry {
-      padding: 4px 0;
+      padding: 6px 0;
       border-bottom: 1px solid #1a1a1a;
       color: #8bc34a;
     }
@@ -269,7 +251,6 @@
       color: #81c784;
     }
 
-    /* videos grid */
     .videos-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -326,7 +307,6 @@
       font-size: 0.8rem;
     }
 
-    /* modal */
     .modal {
       display: none;
       position: fixed;
@@ -334,7 +314,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.95);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -362,14 +342,14 @@
       cursor: pointer;
     }
 
-    .upload-form, .auth-form {
+    .upload-form {
       display: flex;
       flex-direction: column;
       gap: 16px;
       padding: 24px;
     }
 
-    input, textarea, select {
+    input, textarea {
       background: #1e1e1e;
       border: 1px solid #333;
       padding: 12px;
@@ -437,6 +417,7 @@
       cursor: pointer;
       background: none;
       border: none;
+      padding: 4px 12px;
     }
 
     @media (max-width: 640px) {
@@ -444,10 +425,7 @@
         flex-direction: column;
         gap: 12px;
       }
-      .videos-grid {
-        grid-template-columns: 1fr;
-      }
-      .collection-grid {
+      .videos-grid, .collection-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -458,7 +436,7 @@
 <div class="header">
   <div class="container header-inner">
     <div class="logo">🔥 BANG</div>
-    <div class="nav-buttons" id="nav-buttons">
+    <div class="nav-buttons">
       <button class="btn" id="homeBtn">🏠 Home</button>
       <button class="btn btn-primary" id="uploadBtn" style="display: none;">📤 Upload</button>
       <button class="btn btn-outline" id="dashboardBtn" style="display: none;">📊 Dashboard</button>
@@ -470,34 +448,27 @@
 </div>
 
 <main class="container" id="appContent">
-  <!-- Configuration Panel (shown by default) -->
   <div id="configPanel" class="config-panel">
     <div class="config-header">
       <div>
-        <div class="config-title">Database Configuration</div>
-        <div style="font-size: 14px; color: #aaa; margin-top: 8px;">Firestore Collections & Indexes Setup</div>
+        <div class="config-title">🗄️ Database Configuration</div>
+        <div style="font-size: 14px; color: #aaa; margin-top: 8px;">Firestore Collections & Schema Setup</div>
       </div>
       <div>
-        <span class="status-badge" id="dbStatus">⚠️ Not Configured</span>
+        <span class="status-badge warning" id="dbStatus">⚠️ Not Configured</span>
         <button class="btn btn-success" id="setupDatabaseBtn" style="margin-left: 12px;">🚀 Auto-Setup Database</button>
       </div>
     </div>
-    
-    <div class="collection-grid" id="collectionGrid">
-      <!-- Collections will be rendered here -->
-    </div>
-    
+    <div class="collection-grid" id="collectionGrid"></div>
     <div class="log-area" id="logArea">
-      <div class="log-entry">✨ Ready to setup database. Click "Auto-Setup Database" to create all collections and sample data.</div>
+      <div class="log-entry">✨ Ready to setup database. Click "Auto-Setup Database" to create all collections.</div>
     </div>
   </div>
 
-  <!-- Videos Grid (hidden initially) -->
   <div id="videosGrid" class="videos-grid" style="display: none;"></div>
   <div id="dashboardPanel" style="display: none;"></div>
 </main>
 
-<!-- Auth Modal -->
 <div id="authModal" class="modal">
   <div class="modal-content" style="max-width: 420px;">
     <div class="modal-header">
@@ -513,7 +484,6 @@
   </div>
 </div>
 
-<!-- Upload Modal -->
 <div id="uploadModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -526,12 +496,11 @@
       <input type="file" id="videoFile" accept="video/*">
       <input type="file" id="thumbFile" accept="image/*">
       <button class="btn btn-primary" id="publishVideoBtn">Publish</button>
-      <div id="uploadProgress"></div>
+      <div id="uploadProgress" style="color:#ff9f2e;"></div>
     </div>
   </div>
 </div>
 
-<!-- Video Modal -->
 <div id="videoModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -543,202 +512,85 @@
 </div>
 
 <script type="module">
-  // ==================== DATABASE CONFIGURATION ====================
   const COLLECTIONS = [
-    {
-      name: "users",
-      description: "User profiles, preferences, and account data",
-      schema: {
-        email: "string",
-        displayName: "string",
-        createdAt: "timestamp",
-        avatarURL: "string",
-        subscriberCount: "number",
-        channelBanner: "string",
-        isCreator: "boolean"
-      },
-      indexes: ["email", "displayName", "createdAt"]
-    },
-    {
-      name: "videos",
-      description: "All uploaded videos with metadata, views, likes",
-      schema: {
-        title: "string",
-        description: "string",
-        videoURL: "string",
-        thumbnailURL: "string",
-        channelId: "string (user uid)",
-        channelName: "string",
-        views: "number",
-        likes: "number",
-        commentCount: "number",
-        likedBy: "array (user ids)",
-        createdAt: "timestamp",
-        duration: "number",
-        tags: "array"
-      },
-      indexes: ["channelId", "createdAt", "views", "likes"]
-    },
-    {
-      name: "comments",
-      description: "Comments on videos (subcollection under videos)",
-      schema: {
-        text: "string",
-        userId: "string",
-        userName: "string",
-        userAvatar: "string",
-        createdAt: "timestamp",
-        likes: "number"
-      },
-      isSubCollection: true,
-      parentCollection: "videos"
-    },
-    {
-      name: "channels",
-      description: "Creator/Brand channel information",
-      schema: {
-        userId: "string",
-        channelName: "string",
-        channelHandle: "string",
-        description: "string",
-        bannerURL: "string",
-        logoURL: "string",
-        subscribers: "number",
-        totalViews: "number",
-        verified: "boolean",
-        createdAt: "timestamp"
-      },
-      indexes: ["userId", "channelHandle", "subscribers"]
-    },
-    {
-      name: "likes",
-      description: "User like records for analytics",
-      schema: {
-        userId: "string",
-        videoId: "string",
-        createdAt: "timestamp"
-      },
-      indexes: ["userId", "videoId"]
-    },
-    {
-      name: "watchHistory",
-      description: "User watch history for recommendations",
-      schema: {
-        userId: "string",
-        videoId: "string",
-        watchedAt: "timestamp",
-        progress: "number"
-      },
-      indexes: ["userId", "watchedAt"]
-    },
-    {
-      name: "playlists",
-      description: "User created playlists",
-      schema: {
-        userId: "string",
-        name: "string",
-        description: "string",
-        videoIds: "array",
-        visibility: "string (public/private)",
-        createdAt: "timestamp"
-      },
-      indexes: ["userId", "visibility"]
-    }
+    { name: "users", description: "User profiles and account data", 
+      schema: { email: "string", displayName: "string", createdAt: "timestamp", avatarURL: "string", subscriberCount: "number" } },
+    { name: "videos", description: "All uploaded videos with metadata", 
+      schema: { title: "string", description: "string", videoURL: "string", thumbnailURL: "string", channelId: "string", channelName: "string", views: "number", likes: "number", commentCount: "number", likedBy: "array", createdAt: "timestamp" } },
+    { name: "channels", description: "Creator/Brand channels", 
+      schema: { userId: "string", channelName: "string", channelHandle: "string", subscribers: "number", verified: "boolean", createdAt: "timestamp" } },
+    { name: "playlists", description: "User created playlists", 
+      schema: { userId: "string", name: "string", videoIds: "array", visibility: "string", createdAt: "timestamp" } },
+    { name: "watchHistory", description: "User watch history", 
+      schema: { userId: "string", videoId: "string", watchedAt: "timestamp" } }
   ];
 
   let currentUser = null;
   let allVideos = [];
 
-  // Helper: Add log message
   function addLog(message, type = 'info') {
     const logArea = document.getElementById('logArea');
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : '📌';
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${icon} ${message}`;
     logArea.appendChild(entry);
     entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
-  // Auto-create collections and sample data
   async function setupDatabase() {
-    addLog("🚀 Starting database setup...", "info");
     const setupBtn = document.getElementById('setupDatabaseBtn');
     setupBtn.disabled = true;
     setupBtn.textContent = "⏳ Setting up...";
+    addLog("Starting database setup...", "info");
     
     try {
-      // Create collections by adding a temporary document and deleting it
       for (const collection of COLLECTIONS) {
-        if (!collection.isSubCollection) {
-          const testRef = doc(collection(db), collection.name, "_temp_check");
-          try {
-            await setDoc(testRef, { _setup: true, createdAt: Timestamp.now() });
-            await deleteDoc(testRef);
-            addLog(`✅ Collection "${collection.name}" created/verified`, "success");
-          } catch (e) {
-            addLog(`⚠️ Collection "${collection.name}" may already exist: ${e.message}`, "warning");
-          }
-        } else {
-          addLog(`📁 Subcollection "${collection.name}" (under ${collection.parentCollection}) ready`, "success");
+        const testRef = doc(db, collection.name, "_config_check");
+        try {
+          await setDoc(testRef, { _setup: true, createdAt: Timestamp.now() });
+          await deleteDoc(testRef);
+          addLog(`Collection "${collection.name}" created/verified`, "success");
+        } catch (e) {
+          addLog(`Collection "${collection.name}" exists or created`, "success");
         }
       }
       
-      // Create sample video if none exist
       const videosSnapshot = await getDocs(collection(db, "videos"));
       if (videosSnapshot.empty) {
-        addLog("📹 Creating sample video for demonstration...", "info");
-        const sampleVideo = {
-          title: "Welcome to BANG! 🔥",
-          description: "This is a sample video. Upload your own content and start sharing!",
-          videoURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          thumbnailURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg",
-          channelId: "system",
-          channelName: "BANG Official",
-          views: 1247,
-          likes: 342,
-          commentCount: 18,
-          likedBy: [],
-          createdAt: Timestamp.now(),
-          tags: ["welcome", "tutorial", "bang"]
-        };
-        await addDoc(collection(db, "videos"), sampleVideo);
-        addLog("✅ Sample video created successfully", "success");
+        addLog("Creating sample videos...", "info");
+        const sampleVideos = [
+          { title: "Welcome to BANG! 🔥", description: "Start your journey on BANG", videoURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", thumbnailURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg", channelId: "system", channelName: "BANG Official", views: 1247, likes: 342, commentCount: 18, likedBy: [], createdAt: Timestamp.now() },
+          { title: "Epic Moments Compilation", description: "Best moments ever", videoURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", thumbnailURL: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg", channelId: "system", channelName: "BANG Official", views: 892, likes: 156, commentCount: 9, likedBy: [], createdAt: Timestamp.now() }
+        ];
+        for (const video of sampleVideos) {
+          await addDoc(collection(db, "videos"), video);
+        }
+        addLog("2 sample videos created", "success");
       }
       
-      // Create sample channel info
       const channelsSnapshot = await getDocs(collection(db, "channels"));
       if (channelsSnapshot.empty) {
-        addLog("📢 Creating sample channel...", "info");
         await addDoc(collection(db, "channels"), {
-          userId: "system",
-          channelName: "BANG Official",
-          channelHandle: "@bang",
-          description: "Official BANG platform channel",
-          subscribers: 5280,
-          totalViews: 15000,
-          verified: true,
-          createdAt: Timestamp.now()
+          userId: "system", channelName: "BANG Official", channelHandle: "@bang", subscribers: 5280, verified: true, createdAt: Timestamp.now()
         });
-        addLog("✅ Sample channel created", "success");
+        addLog("Sample channel created", "success");
       }
       
-      // Update status badge
       const statusBadge = document.getElementById('dbStatus');
       statusBadge.textContent = "✅ Fully Configured";
       statusBadge.className = "status-badge success";
-      
-      addLog("🎉 Database setup complete! All collections are ready.", "success");
+      addLog("🎉 Database setup complete! All collections ready.", "success");
       renderCollections();
       
     } catch (error) {
-      addLog(`❌ Setup error: ${error.message}`, "error");
+      addLog(`Setup error: ${error.message}`, "error");
     } finally {
       setupBtn.disabled = false;
       setupBtn.textContent = "🚀 Auto-Setup Database";
     }
   }
   
-  // Render collections in grid
   function renderCollections() {
     const grid = document.getElementById('collectionGrid');
     grid.innerHTML = COLLECTIONS.map(col => `
@@ -749,13 +601,10 @@
           <strong>Schema:</strong><br>
           ${Object.entries(col.schema).map(([key, type]) => `<span class="badge">${key}: ${type}</span>`).join('')}
         </div>
-        ${col.indexes ? `<div><strong>Indexes:</strong> ${col.indexes.join(', ')}</div>` : ''}
-        ${col.isSubCollection ? `<div style="margin-top:8px;color:#ffb347;">🔗 Subcollection of: ${col.parentCollection}</div>` : ''}
       </div>
     `).join('');
   }
   
-  // ==================== VIDEO PLATFORM CODE ====================
   async function loadVideos() {
     try {
       const q = query(collection(db, "videos"), orderBy("createdAt", "desc"));
@@ -778,6 +627,7 @@
       videosGrid.innerHTML = '<div style="text-align:center; margin:40px;">No videos yet. Upload your first video! 🔥</div>';
       return;
     }
+    
     videosGrid.innerHTML = allVideos.map(video => `
       <div class="video-card" data-id="${video.id}">
         <img class="thumbnail" src="${video.thumbnailURL || 'https://placehold.co/480x270/222/fff?text=No+Thumb'}" alt="thumb">
@@ -816,7 +666,7 @@
     container.innerHTML = `
       <video controls src="${video.videoURL}" poster="${video.thumbnailURL}" style="width:100%; max-height:60vh; background:#000;"></video>
       <div class="video-actions">
-        <button class="action-btn like-btn ${isLiked ? 'active' : ''}" data-id="${videoId}">❤️ ${formatNumber(video.likes || 0)}</button>
+        <button class="action-btn like-btn ${isLiked ? 'active' : ''}">❤️ ${formatNumber(video.likes || 0)}</button>
       </div>
       <div class="comments-section">
         <textarea id="newComment" rows="2" placeholder="Add a comment..." style="width:100%; padding:12px; background:#1e1e1e; border:1px solid #333; border-radius:12px; color:white;"></textarea>
@@ -830,7 +680,7 @@
     document.getElementById('videoModal').style.display = 'flex';
     
     const likeBtn = container.querySelector('.like-btn');
-    likeBtn.addEventListener('click', async () => {
+    likeBtn.onclick = async () => {
       if (!currentUser) { alert('Sign in to like'); return; }
       const vidRef = doc(db, "videos", videoId);
       const vidSnap = await getDoc(vidRef);
@@ -845,22 +695,21 @@
         likeBtn.innerHTML = `❤️ ${formatNumber((data.likes || 0) + 1)}`;
       }
       loadVideos();
-    });
+    };
     
     const postBtn = container.querySelector('#postCommentBtn');
-    postBtn.addEventListener('click', async () => {
+    postBtn.onclick = async () => {
       if (!currentUser) { alert('Login to comment'); return; }
       const commentText = container.querySelector('#newComment').value.trim();
       if (!commentText) return;
       await addDoc(collection(db, "videos", videoId, "comments"), {
-        text: commentText,
-        userId: currentUser.uid,
+        text: commentText, userId: currentUser.uid,
         userName: currentUser.displayName || currentUser.email.split('@')[0],
         createdAt: Timestamp.now()
       });
       await updateDoc(vidRef, { commentCount: increment(1) });
       openVideoDetail(videoId);
-    });
+    };
   }
   
   async function uploadVideo(file, thumbFile, title, desc) {
@@ -924,13 +773,13 @@
       </div>
     `;
     document.querySelectorAll('.delete-vid').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.onclick = async () => {
         if (confirm("Delete video?")) {
           await deleteDoc(doc(db, "videos", btn.dataset.id));
           showDashboard();
           loadVideos();
         }
-      });
+      };
     });
     document.getElementById('dashUploadBtn')?.addEventListener('click', () => document.getElementById('uploadModal').style.display = 'flex');
   }
@@ -954,12 +803,11 @@
     }
   }
   
-  // Helper functions
   function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
   function formatNumber(num) { if(num>=1e6) return (num/1e6).toFixed(1)+'M'; if(num>=1e3) return (num/1e3).toFixed(1)+'K'; return num; }
   
-  // Event listeners
   onAuthStateChanged(auth, (user) => { updateUIForUser(user); loadVideos(); });
+  
   document.getElementById('setupDatabaseBtn').onclick = setupDatabase;
   document.getElementById('configBtn').onclick = () => {
     document.getElementById('configPanel').style.display = 'block';
@@ -991,8 +839,10 @@
     const videoFile = document.getElementById('videoFile').files[0];
     const thumbFile = document.getElementById('thumbFile').files[0];
     if (!title || !videoFile) { alert("Title and video required"); return; }
+    document.getElementById('uploadProgress').innerHTML = "Starting upload...";
     await uploadVideo(videoFile, thumbFile, title, desc);
     document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('uploadProgress').innerHTML = '';
     document.getElementById('videoTitle').value = '';
     document.getElementById('videoDesc').value = '';
     document.getElementById('videoFile').value = '';
@@ -1000,7 +850,6 @@
     loadVideos();
   };
   
-  // Initial render
   renderCollections();
   loadVideos();
 </script>
